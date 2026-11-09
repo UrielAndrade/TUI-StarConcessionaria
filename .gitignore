@@ -1,0 +1,15 @@
+# Binários gerados
+/star-tui
+/star-tui.exe
+*.exe
+dist/
+
+# Configurações e sessões locais
+.session
+config.yaml
+
+# IDEs e editores
+.idea/
+.vscode/
+*.swp
+*.swo
