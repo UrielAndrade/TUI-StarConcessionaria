@@ -70,6 +70,7 @@ func (m AppModel) Init() tea.Cmd {
 		m.loadVeiculosCmd(),
 		m.loadPecasCmd(),
 		m.loadDashboardCmd(),
+		m.loginView.Init(),
 	)
 }
 
@@ -117,12 +118,41 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loginView.Height = msg.Height
 
 	case tea.KeyMsg:
+		if msg.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+
+		// Teclas F1-F4 para navegação universal de abas
 		switch msg.String() {
-		case "ctrl+c", "q":
-			// Se estiver editando formulário de login, não sai com 'q'
-			if m.activeTab != 3 || msg.String() == "ctrl+c" {
-				return m, tea.Quit
+		case "f1":
+			m.activeTab = 0
+			return m, nil
+		case "f2":
+			m.activeTab = 1
+			return m, nil
+		case "f3":
+			m.activeTab = 2
+			return m, nil
+		case "f4":
+			m.activeTab = 3
+			return m, nil
+		}
+
+		// Se estiver na tela de login (aba 3), NÃO intercepta digitação de caracteres
+		if m.activeTab == 3 {
+			if msg.String() == "esc" {
+				m.activeTab = 0 // Volta para o Dashboard
+				return m, nil
 			}
+			var cmd tea.Cmd
+			m.loginView, cmd = m.loginView.Update(msg)
+			return m, cmd
+		}
+
+		// Atalhos globais para abas normais (Dashboard, Veículos, Peças)
+		switch msg.String() {
+		case "q":
+			return m, tea.Quit
 		case "1":
 			m.activeTab = 0
 		case "2":
@@ -191,14 +221,13 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.loginView.Logado = true
 			m.loginView.Usuario = msg.Resp.Usuario.Nome
 			m.statusMsg = "Usuário: " + msg.Resp.Usuario.Nome
-			// Atualiza configuração e recarrega métricas restritas
 			m.cfg.Token = msg.Resp.Token
 			_ = m.cfg.Save()
 			cmds = append(cmds, m.loadDashboardCmd())
 		}
 	}
 
-	// Encaminha eventos para a visão ativa
+	// Encaminha eventos para a visão ativa (ex: cursor blink, timers)
 	switch m.activeTab {
 	case 1:
 		var cmd tea.Cmd
