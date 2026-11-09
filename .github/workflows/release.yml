@@ -1,0 +1,49 @@
+name: Release Build & Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+
+      - name: Run Tests
+        run: go test -v ./...
+
+      - name: Build Binaries
+        run: |
+          mkdir -p dist/linux dist/windows
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/linux/star-tui ./cmd/star-tui
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/windows/star-tui.exe ./cmd/star-tui
+          
+          tar -czvf dist/star-tui-linux-amd64.tar.gz -C dist/linux star-tui
+          zip -j dist/star-tui-windows-amd64.zip dist/windows/star-tui.exe
+          
+          cd dist && sha256sum star-tui-linux-amd64.tar.gz star-tui-windows-amd64.zip linux/star-tui windows/star-tui.exe > checksums.txt && cd ..
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/star-tui-linux-amd64.tar.gz
+            dist/star-tui-windows-amd64.zip
+            dist/linux/star-tui
+            dist/windows/star-tui.exe
+            dist/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
