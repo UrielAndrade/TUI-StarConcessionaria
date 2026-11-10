@@ -87,3 +87,11 @@ type FiltroVeiculos struct {
 	Pagina            int
 	ItensPorPagina    int
 }
+
+// AdicionarFotoRequest payload para adicionar foto ao veículo.
+type AdicionarFotoRequest struct {
+	URL       string `json:"url"`
+	Principal bool   `json:"principal"`
+	Ordem     int    `json:"ordem"`
+}
+

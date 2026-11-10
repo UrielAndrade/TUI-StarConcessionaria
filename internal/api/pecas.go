@@ -47,6 +47,25 @@ func (c *Client) ListPecas(ctx context.Context, f model.FiltroPecas) (*model.Pag
 	return &res, nil
 }
 
+// GetPeca busca os detalhes de uma peça específica pelo seu identificador.
+func (c *Client) GetPeca(ctx context.Context, id int) (*model.PecaResponse, error) {
+	var res model.PecaResponse
+	resp, err := c.http.R().
+		SetContext(ctx).
+		SetResult(&res).
+		Get(fmt.Sprintf("/api/v1/pecas/%d", id))
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := HandleResponseError(resp); err != nil {
+		return nil, err
+	}
+
+	return &res, nil
+}
+
 // CriarPeca cadastra uma nova peça automotiva.
 func (c *Client) CriarPeca(ctx context.Context, payload model.SalvarPecaRequest) (*model.PecaResponse, error) {
 	var res model.PecaResponse
@@ -65,6 +84,20 @@ func (c *Client) CriarPeca(ctx context.Context, payload model.SalvarPecaRequest)
 	}
 
 	return &res, nil
+}
+
+// AtualizarPeca altera os dados cadastrais ou estoque de uma peça existente.
+func (c *Client) AtualizarPeca(ctx context.Context, id int, payload model.SalvarPecaRequest) error {
+	resp, err := c.http.R().
+		SetContext(ctx).
+		SetBody(payload).
+		Put(fmt.Sprintf("/api/v1/pecas/%d", id))
+
+	if err != nil {
+		return err
+	}
+
+	return HandleResponseError(resp)
 }
 
 // VenderPeca registra a baixa por venda de estoque da peça.

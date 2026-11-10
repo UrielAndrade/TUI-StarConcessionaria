@@ -139,3 +139,68 @@ func (c *Client) AlterarSituacaoVeiculo(ctx context.Context, id int, situacao, j
 
 	return HandleResponseError(resp)
 }
+
+// GetHistoricoVeiculo recupera o histórico de eventos e alterações do veículo.
+func (c *Client) GetHistoricoVeiculo(ctx context.Context, id int) ([]model.VeiculoHistoricoResponse, error) {
+	var res []model.VeiculoHistoricoResponse
+	resp, err := c.http.R().
+		SetContext(ctx).
+		SetResult(&res).
+		Get(fmt.Sprintf("/api/v1/veiculos/%d/historico", id))
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := HandleResponseError(resp); err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+// AdicionarFotoVeiculo anexa uma nova foto à galeria do veículo.
+func (c *Client) AdicionarFotoVeiculo(ctx context.Context, veiculoID int, payload model.AdicionarFotoRequest) (*model.VeiculoFotoResponse, error) {
+	var res model.VeiculoFotoResponse
+	resp, err := c.http.R().
+		SetContext(ctx).
+		SetBody(payload).
+		SetResult(&res).
+		Post(fmt.Sprintf("/api/v1/veiculos/%d/imagens", veiculoID))
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err := HandleResponseError(resp); err != nil {
+		return nil, err
+	}
+
+	return &res, nil
+}
+
+// DefinirFotoPrincipal eleva uma foto cadastrada como a foto de capa principal.
+func (c *Client) DefinirFotoPrincipal(ctx context.Context, veiculoID, imagemID int) error {
+	resp, err := c.http.R().
+		SetContext(ctx).
+		Patch(fmt.Sprintf("/api/v1/veiculos/%d/imagens/%d/principal", veiculoID, imagemID))
+
+	if err != nil {
+		return err
+	}
+
+	return HandleResponseError(resp)
+}
+
+// ExcluirFotoVeiculo remove uma imagem da galeria do veículo.
+func (c *Client) ExcluirFotoVeiculo(ctx context.Context, veiculoID, imagemID int) error {
+	resp, err := c.http.R().
+		SetContext(ctx).
+		Delete(fmt.Sprintf("/api/v1/veiculos/%d/imagens/%d", veiculoID, imagemID))
+
+	if err != nil {
+		return err
+	}
+
+	return HandleResponseError(resp)
+}

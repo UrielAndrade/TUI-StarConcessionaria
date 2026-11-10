@@ -64,3 +64,33 @@ type FiltroReservas struct {
 	Pagina         int
 	ItensPorPagina int
 }
+
+// AgendarVisitaRequest payload para agendar visita na concessionária.
+type AgendarVisitaRequest struct {
+	UnidadeID       int       `json:"unidadeId"`
+	NomeCliente     string    `json:"nomeCliente"`
+	EmailCliente    string    `json:"emailCliente"`
+	TelefoneCliente string    `json:"telefoneCliente"`
+	DataHoraInicio  time.Time `json:"dataHoraInicio"`
+}
+
+// AgendarTestDriveRequest payload para agendar test-drive de veículo.
+type AgendarTestDriveRequest struct {
+	VeiculoID       int       `json:"veiculoId"`
+	UnidadeID       int       `json:"unidadeId"`
+	NomeCliente     string    `json:"nomeCliente"`
+	EmailCliente    string    `json:"emailCliente"`
+	TelefoneCliente string    `json:"telefoneCliente"`
+	CNHCliente      string    `json:"cnhCliente"`
+	DataHoraInicio  time.Time `json:"dataHoraInicio"`
+}
+
+// SolicitarReservaRequest payload para reservar um veículo.
+type SolicitarReservaRequest struct {
+	VeiculoID       int    `json:"veiculoId"`
+	NomeCliente     string `json:"nomeCliente"`
+	EmailCliente    string `json:"emailCliente"`
+	TelefoneCliente string `json:"telefoneCliente"`
+	Observacoes     string `json:"observacoes"`
+}
+

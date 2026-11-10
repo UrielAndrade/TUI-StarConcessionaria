@@ -5,21 +5,34 @@ import (
 	"strings"
 
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/model"
+	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/forms"
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/theme"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
+type EstadoView int
+
+const (
+	EstadoLista EstadoView = iota
+	EstadoNovoVeiculo
+	EstadoAlterarSituacao
+)
+
 type Model struct {
-	Table       table.Model
-	Veiculos    []model.VeiculoCatalogoResponse
-	TotalItens  int
-	PaginaAtual int
-	Carregando  bool
-	Erro        string
-	Width       int
-	Height      int
+	Table        table.Model
+	Veiculos     []model.VeiculoCatalogoResponse
+	TotalItens   int
+	PaginaAtual  int
+	Carregando   bool
+	Erro         string
+	Width        int
+	Height       int
+	Estado       EstadoView
+	NovoForm     *forms.NovoVeiculoForm
+	SituacaoForm *forms.AlterarSituacaoForm
+	IsAutenticado bool
 }
 
 func New() Model {
@@ -61,6 +74,7 @@ func New() Model {
 		Table:       t,
 		Carregando:  true,
 		PaginaAtual: 1,
+		Estado:      EstadoLista,
 	}
 }
 
@@ -88,13 +102,87 @@ func (m *Model) SetDados(resultado *model.PagedResult[model.VeiculoCatalogoRespo
 	m.Table.SetRows(rows)
 }
 
+func (m Model) VeiculoSelecionado() *model.VeiculoCatalogoResponse {
+	c := m.Table.Cursor()
+	if c >= 0 && c < len(m.Veiculos) {
+		return &m.Veiculos[c]
+	}
+	return nil
+}
+
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	switch m.Estado {
+	case EstadoNovoVeiculo:
+		if m.NovoForm != nil {
+			var cmd tea.Cmd
+			m.NovoForm, cmd = m.NovoForm.Update(msg)
+			return m, cmd
+		}
+	case EstadoAlterarSituacao:
+		if m.SituacaoForm != nil {
+			var cmd tea.Cmd
+			m.SituacaoForm, cmd = m.SituacaoForm.Update(msg)
+			return m, cmd
+		}
+	}
+
+	// Modo Lista padrão
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "a":
+			if !m.IsAutenticado {
+				m.Erro = "Autentique-se na aba [4] Login para cadastrar novos veículos."
+				return m, nil
+			}
+			m.Estado = EstadoNovoVeiculo
+			m.NovoForm = forms.NewNovoVeiculoForm()
+			return m, nil
+
+		case "s":
+			if !m.IsAutenticado {
+				m.Erro = "Autentique-se na aba [4] Login para alterar situação de veículos."
+				return m, nil
+			}
+			sel := m.VeiculoSelecionado()
+			if sel != nil {
+				m.Estado = EstadoAlterarSituacao
+				m.SituacaoForm = forms.NewAlterarSituacaoForm(sel.ID, fmt.Sprintf("%s %s", sel.Marca, sel.Modelo), sel.Situacao)
+				return m, nil
+			}
+		}
+	}
+
 	var cmd tea.Cmd
 	m.Table, cmd = m.Table.Update(msg)
 	return m, cmd
 }
 
 func (m Model) View() string {
+	if m.Estado == EstadoNovoVeiculo && m.NovoForm != nil {
+		formBox := theme.ModalBoxStyle.Width(58).Render(
+			lipgloss.JoinVertical(lipgloss.Left,
+				lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render("★ CADASTRAR NOVO VEÍCULO"),
+				lipgloss.NewStyle().Foreground(theme.FgMuted).Render("Preencha os campos abaixo. [Esc] para cancelar."),
+				"",
+				m.NovoForm.View(),
+			),
+		)
+		return lipgloss.Place(m.Width, m.Height-4, lipgloss.Center, lipgloss.Center, formBox)
+	}
+
+	if m.Estado == EstadoAlterarSituacao && m.SituacaoForm != nil {
+		formBox := theme.ModalBoxStyle.Width(54).Render(
+			lipgloss.JoinVertical(lipgloss.Left,
+				lipgloss.NewStyle().Bold(true).Foreground(theme.Secondary).Render("⚙ ATUALIZAR STATUS OPERACIONAL"),
+				lipgloss.NewStyle().Foreground(theme.FgMuted).Render("[Esc] para voltar sem salvar."),
+				"",
+				m.SituacaoForm.View(),
+			),
+		)
+		return lipgloss.Place(m.Width, m.Height-4, lipgloss.Center, lipgloss.Center, formBox)
+	}
+
 	if m.Carregando {
 		return lipgloss.NewStyle().
 			Padding(4).
@@ -102,14 +190,6 @@ func (m Model) View() string {
 			Render("⏳ Carregando catálogo de veículos...")
 	}
 
-	if m.Erro != "" {
-		return lipgloss.NewStyle().
-			Padding(2).
-			Foreground(theme.Danger).
-			Render(fmt.Sprintf("Erro ao carregar veículos: %s", m.Erro))
-	}
-
-	// Tabela de veículos
 	renderedTable := m.Table.View()
 
 	// Card do Veículo Selecionado
@@ -127,9 +207,14 @@ func (m Model) View() string {
 		previewCard = theme.CardStyle.Width(m.Width - 4).Render(strings.Join(info, "\n"))
 	}
 
+	var statusAviso string
+	if m.Erro != "" {
+		statusAviso = lipgloss.NewStyle().Foreground(theme.Warning).Bold(true).Render(" ⚠ " + m.Erro)
+	}
+
 	paginacaoInfo := lipgloss.NewStyle().
 		Foreground(theme.FgMuted).
-		Render(fmt.Sprintf("Exibindo %d de %d veículo(s) cadastrado(s) | Pressione [↑/↓] para navegar na tabela", len(m.Veiculos), m.TotalItens))
+		Render(fmt.Sprintf("Exibindo %d de %d veículo(s) | [a] Novo Veículo  [s] Alterar Status  [↑/↓] Navegar%s", len(m.Veiculos), m.TotalItens, statusAviso))
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		lipgloss.NewStyle().Bold(true).Foreground(theme.FgLight).Padding(1, 0).Render("CATÁLOGO DE VEÍCULOS NO ESTOQUE"),

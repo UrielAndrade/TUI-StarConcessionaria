@@ -7,6 +7,7 @@ import (
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/config"
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/model"
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/components"
+	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/forms"
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/views/dashboard"
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/views/login"
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/views/pecas"
@@ -39,6 +40,11 @@ type LoginResultMsg struct {
 type PerfilLoadedMsg struct {
 	Usuario *model.UsuarioResponse
 	Err     error
+}
+
+type VeiculoMutacaoResultMsg struct {
+	Mensagem string
+	Err      error
 }
 
 type AppModel struct {
@@ -138,6 +144,13 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
+		}
+
+		// Se estiver na aba de veículos com modal interativo aberto:
+		if m.activeTab == 1 && m.veiculosView.Estado != veiculos.EstadoLista {
+			var cmd tea.Cmd
+			m.veiculosView, cmd = m.veiculosView.Update(msg)
+			return m, cmd
 		}
 
 		// Se estiver na tela de login e NÃO estiver autenticado,
@@ -251,6 +264,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.loginView.Logado = true
 			m.loginView.Usuario = msg.Resp.Usuario.Nome
+			m.veiculosView.IsAutenticado = true
 			m.statusMsg = "Usuário: " + msg.Resp.Usuario.Nome
 			m.cfg.Token = msg.Resp.Token
 			_ = m.cfg.Save()
@@ -265,8 +279,48 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Err == nil && msg.Usuario != nil {
 			m.loginView.Logado = true
 			m.loginView.Usuario = msg.Usuario.Nome
+			m.veiculosView.IsAutenticado = true
 			m.statusMsg = "Usuário: " + msg.Usuario.Nome
 			cmds = append(cmds, m.loadDashboardCmd())
+		}
+
+	case forms.NovoVeiculoResultMsg:
+		m.veiculosView.Estado = veiculos.EstadoLista
+		m.veiculosView.NovoForm = nil
+		if !msg.Cancel && msg.Payload != nil {
+			m.statusMsg = "Cadastrando veículo no estoque..."
+			cmds = append(cmds, func() tea.Msg {
+				_, err := m.client.CriarVeiculo(context.Background(), *msg.Payload)
+				return VeiculoMutacaoResultMsg{
+					Mensagem: "Veículo cadastrado com sucesso!",
+					Err:      err,
+				}
+			})
+		}
+
+	case forms.AlterarSituacaoResultMsg:
+		m.veiculosView.Estado = veiculos.EstadoLista
+		m.veiculosView.SituacaoForm = nil
+		if !msg.Cancel {
+			m.statusMsg = "Atualizando situação do veículo..."
+			cmds = append(cmds, func() tea.Msg {
+				err := m.client.AlterarSituacaoVeiculo(context.Background(), msg.VeiculoID, msg.NovaSituacao, msg.Justificativa)
+				return VeiculoMutacaoResultMsg{
+					Mensagem: "Situação do veículo alterada para " + msg.NovaSituacao + "!",
+					Err:      err,
+				}
+			})
+		}
+
+	case VeiculoMutacaoResultMsg:
+		if msg.Err != nil {
+			m.veiculosView.Erro = msg.Err.Error()
+			m.statusMsg = "Falha: " + msg.Err.Error()
+		} else {
+			m.veiculosView.Erro = ""
+			m.statusMsg = msg.Mensagem
+			m.veiculosView.Carregando = true
+			cmds = append(cmds, m.loadVeiculosCmd(), m.loadDashboardCmd())
 		}
 
 	case login.LogoutMsg:
@@ -275,6 +329,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.client.SetToken("")
 		m.statusMsg = "Pronto (Desconectado)"
 		m.activeTab = 0
+		m.veiculosView.IsAutenticado = false
 		m.dashboardView.Indicadores = nil
 		m.dashboardView.Erro = "Efetue login para visualizar dados restritos"
 		cmds = append(cmds, m.loadDashboardCmd())
