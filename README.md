@@ -1,42 +1,34 @@
 # Star Concessionária — Terminal User Interface (TUI)
 
-Aplicação de terminal (TUI) corporativa, moderna e multiplataforma (Linux e Windows 10/11) desenvolvida em **Go (Golang)** com o ecossistema reativo **Bubble Tea**, conectada à API oficial da Star Concessionária.
+Aplicação de terminal (TUI) corporativa, moderna e multiplataforma (Linux e Windows 10/11) desenvolvida em **Go (Golang)** com o ecossistema reativo **Bubble Tea**, conectada à API oficial da Star Concessionária (`https://full-cycle-web-api.onrender.com/`).
 
 ---
 
 ## 🌟 Principais Recursos
 
-- **Executável Único e Portátil:** Compilação estática (`CGO_ENABLED=0`) gerando um binário sem dependências externas (~14 MB).
-- **Paridade Multiplataforma Real:** Suporte nativo ao Linux e Windows (Windows Terminal, PowerShell e CMD legado com habilitação automática de UTF-8 e Virtual Terminal Processing via Win32 API).
-- **Dashboard Gerencial em Tempo Real:** Indicadores operacionais consolidados de estoque, faturamento, peças mais vendidas e alertas de frota.
-- **Catálogo de Veículos e Estoque:** Navegação fluida por teclado com paginação, visualização prévia da ficha técnica e fotos.
-- **Gestão de Peças e Vendas:** Tabela de estoque de autopeças e módulo de baixa por venda.
+- **Executável Único e Portátil:** Compilação estática (`CGO_ENABLED=0`) gerando um binário sem dependências externas (~11 MB).
+- **Paridade Multiplataforma Real:** Suporte nativo ao Linux e Windows (Windows Terminal, PowerShell e CMD legado com habilitação automática de UTF-8 Code Page 65001 e Virtual Terminal Processing via Win32 API).
+- **10 Telas Completas:** Cobertura de 100% dos recursos da concessionária (Dashboard, Veículos, Peças, Vendas, Agendamentos, Reservas, Propostas, SAC, Lojas e Perfil/Login).
+- **Formulários Interativos em Modal:** Suporte a cadastros completos, movimentações de estoque, upload de fotos, pareceres comerciais e respostas de chamados diretamente pelo terminal.
 - **Autenticação Segura JWT:** Formulário interativo para login com tratamento nativo de RFC 7807 (`ProblemDetails`) e persistência segura de sessão.
-- **Resiliência a Cold Start:** Tolerância ao ciclo de hibernação de serviços em nuvem (Render Free Tier) com retentativas e avisos textuais.
+- **Resiliência a Cold Start:** Tolerância ao ciclo de hibernação de serviços em nuvem (Render Free Tier) com retentativas e avisos visuais.
 
 ---
 
-## 🚀 Como Executar
+## 📱 Módulos e Telas do Sistema
 
-### Pré-requisitos
-- [Go 1.23+](https://go.dev/) (apenas para compilação a partir do código-fonte).
-
-### Compilação e Execução Direta
-
-```bash
-# Executar diretamente via Go
-go run ./cmd/star-tui
-
-# Ou construir e rodar o binário Linux
-make run
-```
-
-### Compilação Cruzada (Linux e Windows)
-
-```bash
-# Gerar binários para Linux (star-tui) e Windows (star-tui.exe)
-make build
-```
+| Aba | Tecla | Módulo | Funcionalidades e Cadastros |
+| :---: | :---: | :--- | :--- |
+| **1** | `1` | **Dashboard** | Métricas operacionais em tempo real: faturamento consolidado, frota disponível/reservada/vendida, estoque por loja e ranking de peças mais vendidas. |
+| **2** | `2` | **Veículos** | Catálogo paginado com ficha técnica completa. Atalhos: `[a]` Cadastrar Novo Veículo, `[s]` Alterar Situação Operacional, `[i]` Adicionar Fotos à Galeria. |
+| **3** | `3` | **Peças** | Almoxarifado com alerta de estoque baixo. Atalhos: `[a]` Cadastrar Nova Peça, `[v]` Registrar Venda/Baixa de Peça. |
+| **4** | `4` | **Vendas** | Histórico consolidado de vendas de veículos. Atalhos: `[a]` Emitir/Registrar Venda de Veículo. |
+| **5** | `5` | **Agenda** | Grade de visitas e test-drives. Atalhos: `[v]` Agendar Visita Presencial, `[t]` Agendar Test-Drive com CNH, `[s]` Alterar Status da Agenda. |
+| **6** | `6` | **Reservas** | Gestão de intenções de compra e bloqueios de veículos. Atalhos: `[a]` Solicitar Reserva, `[s]` Atualizar Status com Motivo. |
+| **7** | `7` | **Propostas** | Negociações comerciais com contrapropostas e veículos usados de entrada. Atalhos: `[a]` Enviar Nova Proposta, `[s]` Registrar Parecer Comercial. |
+| **8** | `8` | **SAC** | Atendimento ao cliente e suporte a leads. Atalhos: `[a]` Registrar Novo Chamado/Dúvida, `[r]` Registrar Atendimento/Resposta. |
+| **9** | `9` | **Lojas** | Rede de concessionárias físicas com endereços e geolocalização. Atalhos: `[a]` Cadastrar Nova Loja/Filial. |
+| **0** | `0` | **Perfil / Login** | Autenticação por credenciais (Email/Senha), verificação de cargo e `[L]` Logout. |
 
 ---
 
@@ -44,41 +36,57 @@ make build
 
 | Tecla | Ação |
 | :---: | :--- |
-| `1` | Acessar aba **Dashboard** |
-| `2` | Acessar aba **Veículos** (Catálogo) |
-| `3` | Acessar aba **Peças** (Estoque) |
-| `4` | Acessar aba **Login** (Autenticação) |
-| `Tab` | Alternar sequencialmente entre as abas |
+| `1` até `9` | Acessar diretamente as abas 1 a 9 |
+| `0` | Acessar aba de **Perfil / Login** |
+| `Tab` | Alternar sequencialmente para a próxima aba |
+| `Shift+Tab` | Alternar para a aba anterior |
 | `↑` / `↓` | Navegar pelas linhas das tabelas |
-| `r` | Recarregar dados da tela ativa a partir da API |
+| `r` | Recarregar dados da tela ativa diretamente da API |
+| `Esc` | Fechar modal interativo ou retornar ao Dashboard |
 | `q` ou `Ctrl+C` | Encerrar a aplicação |
 
 ---
 
-## 🏗️ Arquitetura do Projeto
+## 📦 Releases Oficiais para Download
 
-O projeto segue os princípios de *Clean Architecture* e *The Elm Architecture* (TEA):
+As versões compiladas prontas para uso estão disponíveis na aba de Releases do GitHub:
 
-```
-TUI-StarConcessionaria/
-├── cmd/star-tui/          # Ponto de entrada e inicialização de plataforma (Win32 / POSIX)
-├── internal/
-│   ├── api/               # Cliente HTTP Resty, DTOs e tratamento RFC 7807
-│   ├── config/            # Carregamento de YAML, ENV e caminhos cross-platform
-│   ├── model/             # Estruturas e entidades de domínio
-│   └── ui/                # Motor Bubble Tea, temas Lip Gloss, componentes e views
-│       ├── components/    # Header, footer, cartões e modais
-│       ├── theme/         # Paleta corporativa e estilos
-│       └── views/         # Dashboard, Veículos, Peças e Login
-└── Makefile               # Scripts de automação de testes e build
+- **Linux (x86_64):** [Download da Release Linux](https://github.com/UrielAndrade/TUI-StarConcessionaria/releases/tag/v1.0.0-linux)
+- **Windows (10 e 11 x86_64):** [Download da Release Windows](https://github.com/UrielAndrade/TUI-StarConcessionaria/releases/tag/v1.0.0-windows)
+
+---
+
+## 🚀 Como Compilar a Partir do Código-Fonte
+
+### Pré-requisitos
+- [Go 1.23+](https://go.dev/)
+
+```bash
+# Executar diretamente
+go run ./cmd/star-tui
+
+# Executar testes automatizados com API real
+make test
+
+# Compilar para Linux e Windows simultaneamente
+make build
 ```
 
 ---
 
-## 🧪 Testes Automatizados
+## 🏗️ Estrutura do Projeto
 
-O projeto conta com testes de integração cobrindo a comunicação com a API remota em produção:
-
-```bash
-make test
+```
+TUI-StarConcessionaria/
+├── cmd/star-tui/          # Ponto de entrada e inicialização Win32 / POSIX
+├── internal/
+│   ├── api/               # Cliente HTTP Resty cobrindo todos os 42 endpoints
+│   ├── config/            # Persistência de token e configurações
+│   ├── model/             # Modelos de domínio e DTOs tipados
+│   └── ui/                # Motor reativo Bubble Tea
+│       ├── components/    # Header responsivo, footer, cartões e helpers
+│       ├── forms/         # Formulários interativos para todos os cadastros
+│       ├── theme/         # Paleta visual corporativa Lip Gloss
+│       └── views/         # 10 módulos de telas completos
+└── Makefile               # Scripts de automação
 ```
