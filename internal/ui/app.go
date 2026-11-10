@@ -36,6 +36,11 @@ type LoginResultMsg struct {
 	Err  error
 }
 
+type PerfilLoadedMsg struct {
+	Usuario *model.UsuarioResponse
+	Err     error
+}
+
 type AppModel struct {
 	client      *api.Client
 	cfg         *config.Config
@@ -66,12 +71,25 @@ func NewAppModel(client *api.Client, cfg *config.Config) AppModel {
 }
 
 func (m AppModel) Init() tea.Cmd {
-	return tea.Batch(
+	cmds := []tea.Cmd{
 		m.loadVeiculosCmd(),
 		m.loadPecasCmd(),
 		m.loadDashboardCmd(),
 		m.loginView.Init(),
-	)
+	}
+
+	if m.cfg.Token != "" {
+		cmds = append(cmds, m.loadPerfilCmd())
+	}
+
+	return tea.Batch(cmds...)
+}
+
+func (m AppModel) loadPerfilCmd() tea.Cmd {
+	return func() tea.Msg {
+		usuario, err := m.client.GetPerfil(context.Background())
+		return PerfilLoadedMsg{Usuario: usuario, Err: err}
+	}
 }
 
 func (m AppModel) loadDashboardCmd() tea.Cmd {
@@ -122,44 +140,46 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 
-		// Teclas F1-F4 para navegação universal de abas
-		switch msg.String() {
-		case "f1":
-			m.activeTab = 0
-			return m, nil
-		case "f2":
-			m.activeTab = 1
-			return m, nil
-		case "f3":
-			m.activeTab = 2
-			return m, nil
-		case "f4":
-			m.activeTab = 3
-			return m, nil
-		}
-
-		// Se estiver na tela de login (aba 3), NÃO intercepta digitação de caracteres
-		if m.activeTab == 3 {
+		// Se estiver na tela de login e NÃO estiver autenticado,
+		// o usuário está digitando suas credenciais no formulário.
+		if m.activeTab == 3 && !m.loginView.Logado {
 			if msg.String() == "esc" {
 				m.activeTab = 0 // Volta para o Dashboard
 				return m, nil
 			}
+			// Atalhos diretos de função (F1-F4) para alternar abas instantaneamente
+			switch msg.String() {
+			case "f1":
+				m.activeTab = 0
+				return m, nil
+			case "f2":
+				m.activeTab = 1
+				return m, nil
+			case "f3":
+				m.activeTab = 2
+				return m, nil
+			case "f4":
+				m.activeTab = 3
+				return m, nil
+			}
+
 			var cmd tea.Cmd
 			m.loginView, cmd = m.loginView.Update(msg)
 			return m, cmd
 		}
 
-		// Atalhos globais para abas normais (Dashboard, Veículos, Peças)
+		// Quando já estiver logado OU em qualquer outra aba (Dashboard, Veículos, Peças):
+		// Todos os atalhos de navegação funcionam livremente!
 		switch msg.String() {
 		case "q":
 			return m, tea.Quit
-		case "1":
+		case "1", "f1":
 			m.activeTab = 0
-		case "2":
+		case "2", "f2":
 			m.activeTab = 1
-		case "3":
+		case "3", "f3":
 			m.activeTab = 2
-		case "4":
+		case "4", "f4":
 			m.activeTab = 3
 		case "r":
 			// Recarregar dados da aba atual
@@ -176,6 +196,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "tab":
 			m.activeTab = (m.activeTab + 1) % 4
+		case "esc":
+			if m.activeTab == 3 {
+				m.activeTab = 0
+			}
+		}
+
+		// Se estiver na aba de perfil (logado), repassa tecla para capturar Logout ('L')
+		if m.activeTab == 3 && m.loginView.Logado {
+			var cmd tea.Cmd
+			m.loginView, cmd = m.loginView.Update(msg)
+			cmds = append(cmds, cmd)
 		}
 
 	case IndicadoresLoadedMsg:
@@ -223,8 +254,30 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusMsg = "Usuário: " + msg.Resp.Usuario.Nome
 			m.cfg.Token = msg.Resp.Token
 			_ = m.cfg.Save()
+
+			// Transita automaticamente para o Dashboard com os dados liberados!
+			m.activeTab = 0
+			m.dashboardView.Carregando = true
 			cmds = append(cmds, m.loadDashboardCmd())
 		}
+
+	case PerfilLoadedMsg:
+		if msg.Err == nil && msg.Usuario != nil {
+			m.loginView.Logado = true
+			m.loginView.Usuario = msg.Usuario.Nome
+			m.statusMsg = "Usuário: " + msg.Usuario.Nome
+			cmds = append(cmds, m.loadDashboardCmd())
+		}
+
+	case login.LogoutMsg:
+		m.cfg.Token = ""
+		_ = m.cfg.Save()
+		m.client.SetToken("")
+		m.statusMsg = "Pronto (Desconectado)"
+		m.activeTab = 0
+		m.dashboardView.Indicadores = nil
+		m.dashboardView.Erro = "Efetue login para visualizar dados restritos"
+		cmds = append(cmds, m.loadDashboardCmd())
 	}
 
 	// Encaminha eventos para a visão ativa (ex: cursor blink, timers)
@@ -238,20 +291,27 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.pecasView, cmd = m.pecasView.Update(msg)
 		cmds = append(cmds, cmd)
 	case 3:
-		var cmd tea.Cmd
-		m.loginView, cmd = m.loginView.Update(msg)
-		cmds = append(cmds, cmd)
+		if !m.loginView.Logado {
+			var cmd tea.Cmd
+			m.loginView, cmd = m.loginView.Update(msg)
+			cmds = append(cmds, cmd)
+		}
 	}
 
 	return m, tea.Batch(cmds...)
 }
 
 func (m AppModel) View() string {
+	loginTabTitle := "Login"
+	if m.loginView.Logado {
+		loginTabTitle = "Perfil"
+	}
+
 	tabs := []components.TabItem{
 		{Key: "1", Title: "Dashboard"},
 		{Key: "2", Title: "Veículos"},
 		{Key: "3", Title: "Peças"},
-		{Key: "4", Title: "Login"},
+		{Key: "4", Title: loginTabTitle},
 	}
 
 	header := components.RenderHeader(m.activeTab, tabs, m.width)

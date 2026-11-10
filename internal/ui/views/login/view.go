@@ -15,6 +15,8 @@ type SubmitLoginMsg struct {
 	Senha string
 }
 
+type LogoutMsg struct{}
+
 type Model struct {
 	focusIndex int
 	inputs     []textinput.Model
@@ -58,6 +60,25 @@ func (m Model) Init() tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if m.Carregando {
+		return m, nil
+	}
+
+	// Se já estiver logado, atende a comandos de perfil e logout
+	if m.Logado {
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			switch keyMsg.String() {
+			case "l", "L":
+				m.Logado = false
+				m.Usuario = ""
+				m.inputs[0].SetValue("")
+				m.inputs[1].SetValue("")
+				m.focusIndex = 0
+				m.inputs[0].Focus()
+				return m, func() tea.Msg {
+					return LogoutMsg{}
+				}
+			}
+		}
 		return m, nil
 	}
 
@@ -136,11 +157,26 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m Model) View() string {
 	if m.Logado {
+		infoLines := []string{
+			lipgloss.NewStyle().Bold(true).Foreground(theme.Success).Render("✓ SESSÃO ATIVA"),
+			"",
+			fmt.Sprintf("Usuário Conectado: %s", lipgloss.NewStyle().Bold(true).Foreground(theme.FgLight).Render(m.Usuario)),
+			"Status: Autenticado com Token JWT Bearer",
+			"Permissões: Acesso completo aos recursos gerenciais e métricas",
+			"",
+			lipgloss.NewStyle().Foreground(theme.FgMuted).Render("Atalhos rápidos para navegação:"),
+			lipgloss.NewStyle().Foreground(theme.Accent).Render("  [1] Ir para o Dashboard de Indicadores"),
+			lipgloss.NewStyle().Foreground(theme.Accent).Render("  [2] Acessar Catálogo de Veículos"),
+			lipgloss.NewStyle().Foreground(theme.Accent).Render("  [3] Acessar Estoque de Peças"),
+			lipgloss.NewStyle().Foreground(theme.Danger).Render("  [L] Encerrar Sessão (Logout)"),
+			lipgloss.NewStyle().Foreground(theme.FgMuted).Render("  [Esc] Voltar ao Dashboard"),
+		}
 		box := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(theme.Success).
-			Padding(1, 2).
-			Render(fmt.Sprintf("✓ Sessão ativa como: %s\n\nVocê possui acesso completo aos recursos administrativos e métricas.", m.Usuario))
+			Padding(1, 3).
+			Width(56).
+			Render(strings.Join(infoLines, "\n"))
 		return lipgloss.Place(m.Width, m.Height-4, lipgloss.Center, lipgloss.Center, box)
 	}
 
