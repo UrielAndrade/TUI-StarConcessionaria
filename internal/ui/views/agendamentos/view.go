@@ -5,21 +5,36 @@ import (
 	"strings"
 
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/model"
+	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/forms"
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/theme"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
+type EstadoView int
+
+const (
+	EstadoLista EstadoView = iota
+	EstadoAgendarVisita
+	EstadoAgendarTestDrive
+	EstadoStatus
+)
+
 type Model struct {
-	Table       table.Model
-	Agendamentos []model.AgendamentoResponse
-	TotalItens  int
-	PaginaAtual int
-	Carregando  bool
-	Erro        string
-	Width       int
-	Height      int
+	Table         table.Model
+	Agendamentos  []model.AgendamentoResponse
+	TotalItens    int
+	PaginaAtual   int
+	Carregando    bool
+	Erro          string
+	Width         int
+	Height        int
+	Estado        EstadoView
+	VisitaForm    *forms.AgendarVisitaForm
+	TestDriveForm *forms.AgendarTestDriveForm
+	StatusForm    *forms.StatusAgendamentoForm
+	IsAutenticado bool
 }
 
 func New() Model {
@@ -60,6 +75,7 @@ func New() Model {
 		Table:       t,
 		Carregando:  true,
 		PaginaAtual: 1,
+		Estado:      EstadoLista,
 	}
 }
 
@@ -101,12 +117,96 @@ func (m Model) AgendamentoSelecionado() *model.AgendamentoResponse {
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	switch m.Estado {
+	case EstadoAgendarVisita:
+		if m.VisitaForm != nil {
+			var cmd tea.Cmd
+			m.VisitaForm, cmd = m.VisitaForm.Update(msg)
+			return m, cmd
+		}
+	case EstadoAgendarTestDrive:
+		if m.TestDriveForm != nil {
+			var cmd tea.Cmd
+			m.TestDriveForm, cmd = m.TestDriveForm.Update(msg)
+			return m, cmd
+		}
+	case EstadoStatus:
+		if m.StatusForm != nil {
+			var cmd tea.Cmd
+			m.StatusForm, cmd = m.StatusForm.Update(msg)
+			return m, cmd
+		}
+	}
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "v":
+			m.Estado = EstadoAgendarVisita
+			m.VisitaForm = forms.NewAgendarVisitaForm()
+			return m, nil
+
+		case "t":
+			m.Estado = EstadoAgendarTestDrive
+			m.TestDriveForm = forms.NewAgendarTestDriveForm(1)
+			return m, nil
+
+		case "s":
+			if !m.IsAutenticado {
+				m.Erro = "Autentique-se na aba [9] Perfil para alterar status de agendamentos."
+				return m, nil
+			}
+			sel := m.AgendamentoSelecionado()
+			if sel != nil {
+				m.Estado = EstadoStatus
+				m.StatusForm = forms.NewStatusAgendamentoForm(sel.ID, sel.Situacao)
+				return m, nil
+			}
+		}
+	}
+
 	var cmd tea.Cmd
 	m.Table, cmd = m.Table.Update(msg)
 	return m, cmd
 }
 
 func (m Model) View() string {
+	if m.Estado == EstadoAgendarVisita && m.VisitaForm != nil {
+		formBox := theme.ModalBoxStyle.Width(58).Render(
+			lipgloss.JoinVertical(lipgloss.Left,
+				lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render("📅 AGENDAR VISITA À CONCESSIONÁRIA"),
+				lipgloss.NewStyle().Foreground(theme.FgMuted).Render("[Esc] para cancelar."),
+				"",
+				m.VisitaForm.View(),
+			),
+		)
+		return lipgloss.Place(m.Width, m.Height-4, lipgloss.Center, lipgloss.Center, formBox)
+	}
+
+	if m.Estado == EstadoAgendarTestDrive && m.TestDriveForm != nil {
+		formBox := theme.ModalBoxStyle.Width(58).Render(
+			lipgloss.JoinVertical(lipgloss.Left,
+				lipgloss.NewStyle().Bold(true).Foreground(theme.Secondary).Render("🚗 AGENDAR TEST-DRIVE COM CNH"),
+				lipgloss.NewStyle().Foreground(theme.FgMuted).Render("[Esc] para cancelar."),
+				"",
+				m.TestDriveForm.View(),
+			),
+		)
+		return lipgloss.Place(m.Width, m.Height-4, lipgloss.Center, lipgloss.Center, formBox)
+	}
+
+	if m.Estado == EstadoStatus && m.StatusForm != nil {
+		formBox := theme.ModalBoxStyle.Width(56).Render(
+			lipgloss.JoinVertical(lipgloss.Left,
+				lipgloss.NewStyle().Bold(true).Foreground(theme.Accent).Render("⚙ ATUALIZAR STATUS DE AGENDAMENTO"),
+				lipgloss.NewStyle().Foreground(theme.FgMuted).Render("[Esc] para voltar sem salvar."),
+				"",
+				m.StatusForm.View(),
+			),
+		)
+		return lipgloss.Place(m.Width, m.Height-4, lipgloss.Center, lipgloss.Center, formBox)
+	}
+
 	if m.Carregando {
 		return lipgloss.NewStyle().
 			Padding(4).
@@ -144,7 +244,7 @@ func (m Model) View() string {
 
 	paginacaoInfo := lipgloss.NewStyle().
 		Foreground(theme.FgMuted).
-		Render(fmt.Sprintf("Exibindo %d de %d agendamento(s) | [↑/↓] Navegar na agenda", len(m.Agendamentos), m.TotalItens))
+		Render(fmt.Sprintf("Exibindo %d de %d agendamento(s) | [v] Agendar Visita  [t] Novo Test-Drive  [s] Alterar Status  [↑/↓] Navegar", len(m.Agendamentos), m.TotalItens))
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		lipgloss.NewStyle().Bold(true).Foreground(theme.FgLight).Padding(1, 0).Render("AGENDA DE TEST-DRIVES E VISITAS"),

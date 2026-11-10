@@ -5,21 +5,34 @@ import (
 	"strings"
 
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/model"
+	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/forms"
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/theme"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
+type EstadoView int
+
+const (
+	EstadoLista EstadoView = iota
+	EstadoNovaReserva
+	EstadoStatus
+)
+
 type Model struct {
-	Table       table.Model
-	Reservas    []model.ReservaResponse
-	TotalItens  int
-	PaginaAtual int
-	Carregando  bool
-	Erro        string
-	Width       int
-	Height      int
+	Table         table.Model
+	Reservas      []model.ReservaResponse
+	TotalItens    int
+	PaginaAtual   int
+	Carregando    bool
+	Erro          string
+	Width         int
+	Height        int
+	Estado        EstadoView
+	NovaForm      *forms.NovaReservaForm
+	StatusForm    *forms.StatusReservaForm
+	IsAutenticado bool
 }
 
 func New() Model {
@@ -59,6 +72,7 @@ func New() Model {
 		Table:       t,
 		Carregando:  true,
 		PaginaAtual: 1,
+		Estado:      EstadoLista,
 	}
 }
 
@@ -94,12 +108,73 @@ func (m Model) ReservaSelecionada() *model.ReservaResponse {
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	switch m.Estado {
+	case EstadoNovaReserva:
+		if m.NovaForm != nil {
+			var cmd tea.Cmd
+			m.NovaForm, cmd = m.NovaForm.Update(msg)
+			return m, cmd
+		}
+	case EstadoStatus:
+		if m.StatusForm != nil {
+			var cmd tea.Cmd
+			m.StatusForm, cmd = m.StatusForm.Update(msg)
+			return m, cmd
+		}
+	}
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "a":
+			m.Estado = EstadoNovaReserva
+			m.NovaForm = forms.NewNovaReservaForm(1)
+			return m, nil
+
+		case "s":
+			if !m.IsAutenticado {
+				m.Erro = "Autentique-se na aba [9] Perfil para alterar status de reservas."
+				return m, nil
+			}
+			sel := m.ReservaSelecionada()
+			if sel != nil {
+				m.Estado = EstadoStatus
+				m.StatusForm = forms.NewStatusReservaForm(sel.ID, sel.Situacao)
+				return m, nil
+			}
+		}
+	}
+
 	var cmd tea.Cmd
 	m.Table, cmd = m.Table.Update(msg)
 	return m, cmd
 }
 
 func (m Model) View() string {
+	if m.Estado == EstadoNovaReserva && m.NovaForm != nil {
+		formBox := theme.ModalBoxStyle.Width(58).Render(
+			lipgloss.JoinVertical(lipgloss.Left,
+				lipgloss.NewStyle().Bold(true).Foreground(theme.Accent).Render("🔒 SOLICITAR RESERVA DE VEÍCULO"),
+				lipgloss.NewStyle().Foreground(theme.FgMuted).Render("[Esc] para cancelar."),
+				"",
+				m.NovaForm.View(),
+			),
+		)
+		return lipgloss.Place(m.Width, m.Height-4, lipgloss.Center, lipgloss.Center, formBox)
+	}
+
+	if m.Estado == EstadoStatus && m.StatusForm != nil {
+		formBox := theme.ModalBoxStyle.Width(56).Render(
+			lipgloss.JoinVertical(lipgloss.Left,
+				lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render("⚙ ALTERAR SITUAÇÃO DA RESERVA"),
+				lipgloss.NewStyle().Foreground(theme.FgMuted).Render("[Esc] para voltar sem salvar."),
+				"",
+				m.StatusForm.View(),
+			),
+		)
+		return lipgloss.Place(m.Width, m.Height-4, lipgloss.Center, lipgloss.Center, formBox)
+	}
+
 	if m.Carregando {
 		return lipgloss.NewStyle().
 			Padding(4).
@@ -131,7 +206,7 @@ func (m Model) View() string {
 
 	paginacaoInfo := lipgloss.NewStyle().
 		Foreground(theme.FgMuted).
-		Render(fmt.Sprintf("Exibindo %d de %d reserva(s) | [↑/↓] Navegar", len(m.Reservas), m.TotalItens))
+		Render(fmt.Sprintf("Exibindo %d de %d reserva(s) | [a] Solicitar Reserva  [s] Alterar Status  [↑/↓] Navegar", len(m.Reservas), m.TotalItens))
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		lipgloss.NewStyle().Bold(true).Foreground(theme.FgLight).Padding(1, 0).Render("RESERVAS E BLOQUEIOS DE ESTOQUE"),

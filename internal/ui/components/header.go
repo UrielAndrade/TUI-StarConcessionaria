@@ -27,16 +27,22 @@ func RenderHeader(activeTab int, tabs []TabItem, width int) string {
 		}
 	}
 	tabsRow := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
-
 	topBar := lipgloss.JoinHorizontal(lipgloss.Center, logo, " ", version)
+
 	availableSpace := width - lipgloss.Width(topBar) - lipgloss.Width(tabsRow) - 2
-	var filler string
-	if availableSpace > 0 {
-		filler = strings.Repeat(" ", availableSpace)
+
+	var headerContent string
+	if availableSpace >= 2 {
+		filler := strings.Repeat(" ", availableSpace)
+		headerContent = lipgloss.JoinHorizontal(lipgloss.Center, topBar, filler, tabsRow)
+	} else {
+		// Modo responsivo para terminais padrão (80-110 colunas): logotipo na linha 1, abas na linha 2
+		headerContent = lipgloss.JoinVertical(lipgloss.Left,
+			lipgloss.NewStyle().Padding(0, 1).Render(topBar),
+			tabsRow,
+		)
 	}
 
-	header := lipgloss.JoinHorizontal(lipgloss.Center, topBar, filler, tabsRow)
 	divider := lipgloss.NewStyle().Foreground(theme.BorderCol).Render(strings.Repeat("─", width))
-
-	return lipgloss.JoinVertical(lipgloss.Left, header, divider)
+	return lipgloss.JoinVertical(lipgloss.Left, headerContent, divider)
 }

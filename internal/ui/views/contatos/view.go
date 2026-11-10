@@ -5,21 +5,34 @@ import (
 	"strings"
 
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/model"
+	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/forms"
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/theme"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
+type EstadoView int
+
+const (
+	EstadoLista EstadoView = iota
+	EstadoNovoContato
+	EstadoResponder
+)
+
 type Model struct {
-	Table       table.Model
-	Contatos    []model.ContatoResponse
-	TotalItens  int
-	PaginaAtual int
-	Carregando  bool
-	Erro        string
-	Width       int
-	Height      int
+	Table         table.Model
+	Contatos      []model.ContatoResponse
+	TotalItens    int
+	PaginaAtual   int
+	Carregando    bool
+	Erro          string
+	Width         int
+	Height        int
+	Estado        EstadoView
+	NovoForm      *forms.NovoContatoForm
+	ResponderForm *forms.ResponderContatoForm
+	IsAutenticado bool
 }
 
 func New() Model {
@@ -60,6 +73,7 @@ func New() Model {
 		Table:       t,
 		Carregando:  true,
 		PaginaAtual: 1,
+		Estado:      EstadoLista,
 	}
 }
 
@@ -101,12 +115,73 @@ func (m Model) ContatoSelecionado() *model.ContatoResponse {
 }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	switch m.Estado {
+	case EstadoNovoContato:
+		if m.NovoForm != nil {
+			var cmd tea.Cmd
+			m.NovoForm, cmd = m.NovoForm.Update(msg)
+			return m, cmd
+		}
+	case EstadoResponder:
+		if m.ResponderForm != nil {
+			var cmd tea.Cmd
+			m.ResponderForm, cmd = m.ResponderForm.Update(msg)
+			return m, cmd
+		}
+	}
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "a":
+			m.Estado = EstadoNovoContato
+			m.NovoForm = forms.NewNovoContatoForm()
+			return m, nil
+
+		case "r":
+			if !m.IsAutenticado {
+				m.Erro = "Autentique-se na aba [0] Perfil para responder chamados do SAC."
+				return m, nil
+			}
+			sel := m.ContatoSelecionado()
+			if sel != nil {
+				m.Estado = EstadoResponder
+				m.ResponderForm = forms.NewResponderContatoForm(sel.ID, sel.Protocolo)
+				return m, nil
+			}
+		}
+	}
+
 	var cmd tea.Cmd
 	m.Table, cmd = m.Table.Update(msg)
 	return m, cmd
 }
 
 func (m Model) View() string {
+	if m.Estado == EstadoNovoContato && m.NovoForm != nil {
+		formBox := theme.ModalBoxStyle.Width(58).Render(
+			lipgloss.JoinVertical(lipgloss.Left,
+				lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render("✉ NOVO ATENDIMENTO / CHAMADO SAC"),
+				lipgloss.NewStyle().Foreground(theme.FgMuted).Render("Preencha a mensagem. [Esc] para cancelar."),
+				"",
+				m.NovoForm.View(),
+			),
+		)
+		return lipgloss.Place(m.Width, m.Height-4, lipgloss.Center, lipgloss.Center, formBox)
+	}
+
+	if m.Estado == EstadoResponder && m.ResponderForm != nil {
+		formBox := theme.ModalBoxStyle.Width(56).Render(
+			lipgloss.JoinVertical(lipgloss.Left,
+				lipgloss.NewStyle().Bold(true).Foreground(theme.Secondary).Render("📝 RESPONDER CHAMADO SAC"),
+				lipgloss.NewStyle().Foreground(theme.FgMuted).Render("[Esc] para voltar sem responder."),
+				"",
+				m.ResponderForm.View(),
+			),
+		)
+		return lipgloss.Place(m.Width, m.Height-4, lipgloss.Center, lipgloss.Center, formBox)
+	}
+
 	if m.Carregando {
 		return lipgloss.NewStyle().
 			Padding(4).
@@ -119,7 +194,7 @@ func (m Model) View() string {
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(theme.Warning).
 			Padding(1, 2).
-			Render(fmt.Sprintf("Aviso: %s\n\n(Dica: Mensagens de clientes exigem login na aba [9] Perfil)", m.Erro))
+			Render(fmt.Sprintf("Aviso: %s\n\n(Dica: Mensagens de clientes exigem login na aba [0] Perfil)", m.Erro))
 	}
 
 	renderedTable := m.Table.View()
@@ -139,7 +214,7 @@ func (m Model) View() string {
 
 	paginacaoInfo := lipgloss.NewStyle().
 		Foreground(theme.FgMuted).
-		Render(fmt.Sprintf("Exibindo %d de %d contato(s) | [↑/↓] Navegar", len(m.Contatos), m.TotalItens))
+		Render(fmt.Sprintf("Exibindo %d de %d contato(s) | [a] Novo Atendimento  [r] Responder Chamado  [↑/↓] Navegar", len(m.Contatos), m.TotalItens))
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		lipgloss.NewStyle().Bold(true).Foreground(theme.FgLight).Padding(1, 0).Render("ATENDIMENTO AO CLIENTE & LEADS (SAC)"),

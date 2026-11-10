@@ -13,6 +13,7 @@ import (
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/views/dashboard"
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/views/login"
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/views/pecas"
+	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/views/propostas"
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/views/reservas"
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/views/unidades"
 	"github.com/UrielAndrade/TUI-StarConcessionaria/internal/ui/views/veiculos"
@@ -52,6 +53,11 @@ type ReservasLoadedMsg struct {
 	Err  error
 }
 
+type PropostasLoadedMsg struct {
+	Data *model.PagedResult[model.PropostaResponse]
+	Err  error
+}
+
 type ContatosLoadedMsg struct {
 	Data *model.PagedResult[model.ContatoResponse]
 	Err  error
@@ -72,12 +78,9 @@ type PerfilLoadedMsg struct {
 	Err     error
 }
 
-type VeiculoMutacaoResultMsg struct {
-	Mensagem string
-	Err      error
-}
-
-type PecaMutacaoResultMsg struct {
+// Mensagens de retorno das mutações
+type OperacaoResultMsg struct {
+	Modulo   string
 	Mensagem string
 	Err      error
 }
@@ -91,16 +94,17 @@ type AppModel struct {
 	isConnected bool
 	statusMsg   string
 
-	// Telas
-	dashboardView   dashboard.Model
-	veiculosView    veiculos.Model
-	pecasView       pecas.Model
-	vendasView      vendas.Model
-	agendaView      agendamentos.Model
-	reservasView    reservas.Model
-	contatosView    contatos.Model
-	unidadesView    unidades.Model
-	loginView       login.Model
+	// 10 Telas Completas
+	dashboardView dashboard.Model
+	veiculosView  veiculos.Model
+	pecasView     pecas.Model
+	vendasView    vendas.Model
+	agendaView    agendamentos.Model
+	reservasView  reservas.Model
+	propostasView propostas.Model
+	contatosView  contatos.Model
+	unidadesView  unidades.Model
+	loginView     login.Model
 }
 
 func NewAppModel(client *api.Client, cfg *config.Config) AppModel {
@@ -115,6 +119,7 @@ func NewAppModel(client *api.Client, cfg *config.Config) AppModel {
 		vendasView:    vendas.New(),
 		agendaView:    agendamentos.New(),
 		reservasView:  reservas.New(),
+		propostasView: propostas.New(),
 		contatosView:  contatos.New(),
 		unidadesView:  unidades.New(),
 		loginView:     login.New(),
@@ -136,6 +141,7 @@ func (m AppModel) Init() tea.Cmd {
 			m.loadVendasCmd(),
 			m.loadAgendamentosCmd(),
 			m.loadReservasCmd(),
+			m.loadPropostasCmd(),
 			m.loadContatosCmd(),
 		)
 	}
@@ -161,7 +167,7 @@ func (m AppModel) loadVeiculosCmd() tea.Cmd {
 	return func() tea.Msg {
 		data, err := m.client.ListVeiculos(context.Background(), model.FiltroVeiculos{
 			Pagina:         1,
-			ItensPorPagina: 12,
+			ItensPorPagina: 15,
 		})
 		return VeiculosLoadedMsg{Data: data, Err: err}
 	}
@@ -171,7 +177,7 @@ func (m AppModel) loadPecasCmd() tea.Cmd {
 	return func() tea.Msg {
 		data, err := m.client.ListPecas(context.Background(), model.FiltroPecas{
 			Pagina:         1,
-			ItensPorPagina: 12,
+			ItensPorPagina: 15,
 		})
 		return PecasLoadedMsg{Data: data, Err: err}
 	}
@@ -181,7 +187,7 @@ func (m AppModel) loadVendasCmd() tea.Cmd {
 	return func() tea.Msg {
 		data, err := m.client.ListVendas(context.Background(), model.FiltroVendas{
 			Pagina:         1,
-			ItensPorPagina: 12,
+			ItensPorPagina: 15,
 		})
 		return VendasLoadedMsg{Data: data, Err: err}
 	}
@@ -191,7 +197,7 @@ func (m AppModel) loadAgendamentosCmd() tea.Cmd {
 	return func() tea.Msg {
 		data, err := m.client.ListAgendamentos(context.Background(), model.FiltroAgendamentos{
 			Pagina:         1,
-			ItensPorPagina: 12,
+			ItensPorPagina: 15,
 		})
 		return AgendamentosLoadedMsg{Data: data, Err: err}
 	}
@@ -201,9 +207,19 @@ func (m AppModel) loadReservasCmd() tea.Cmd {
 	return func() tea.Msg {
 		data, err := m.client.ListReservas(context.Background(), model.FiltroReservas{
 			Pagina:         1,
-			ItensPorPagina: 12,
+			ItensPorPagina: 15,
 		})
 		return ReservasLoadedMsg{Data: data, Err: err}
+	}
+}
+
+func (m AppModel) loadPropostasCmd() tea.Cmd {
+	return func() tea.Msg {
+		data, err := m.client.ListPropostas(context.Background(), model.FiltroPropostas{
+			Pagina:         1,
+			ItensPorPagina: 15,
+		})
+		return PropostasLoadedMsg{Data: data, Err: err}
 	}
 }
 
@@ -211,7 +227,7 @@ func (m AppModel) loadContatosCmd() tea.Cmd {
 	return func() tea.Msg {
 		data, err := m.client.ListContatos(context.Background(), model.FiltroContatos{
 			Pagina:         1,
-			ItensPorPagina: 12,
+			ItensPorPagina: 15,
 		})
 		return ContatosLoadedMsg{Data: data, Err: err}
 	}
@@ -243,6 +259,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.agendaView.Height = msg.Height
 		m.reservasView.Width = msg.Width
 		m.reservasView.Height = msg.Height
+		m.propostasView.Width = msg.Width
+		m.propostasView.Height = msg.Height
 		m.contatosView.Width = msg.Width
 		m.contatosView.Height = msg.Height
 		m.unidadesView.Width = msg.Width
@@ -255,22 +273,57 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 
-		// Se estiver na aba de veículos com modal interativo aberto:
+		// Se qualquer modal interativo estiver aberto, repassa a tecla EXCLUSIVAMENTE para o formulário
 		if m.activeTab == 1 && m.veiculosView.Estado != veiculos.EstadoLista {
 			var cmd tea.Cmd
 			m.veiculosView, cmd = m.veiculosView.Update(msg)
 			return m, cmd
 		}
 
-		// Se estiver na aba de peças com modal interativo aberto:
 		if m.activeTab == 2 && m.pecasView.Estado != pecas.EstadoLista {
 			var cmd tea.Cmd
 			m.pecasView, cmd = m.pecasView.Update(msg)
 			return m, cmd
 		}
 
-		// Se estiver na tela de login e NÃO estiver autenticado:
-		if m.activeTab == 8 && !m.loginView.Logado {
+		if m.activeTab == 3 && m.vendasView.Estado != vendas.EstadoLista {
+			var cmd tea.Cmd
+			m.vendasView, cmd = m.vendasView.Update(msg)
+			return m, cmd
+		}
+
+		if m.activeTab == 4 && m.agendaView.Estado != agendamentos.EstadoLista {
+			var cmd tea.Cmd
+			m.agendaView, cmd = m.agendaView.Update(msg)
+			return m, cmd
+		}
+
+		if m.activeTab == 5 && m.reservasView.Estado != reservas.EstadoLista {
+			var cmd tea.Cmd
+			m.reservasView, cmd = m.reservasView.Update(msg)
+			return m, cmd
+		}
+
+		if m.activeTab == 6 && m.propostasView.Estado != propostas.EstadoLista {
+			var cmd tea.Cmd
+			m.propostasView, cmd = m.propostasView.Update(msg)
+			return m, cmd
+		}
+
+		if m.activeTab == 7 && m.contatosView.Estado != contatos.EstadoLista {
+			var cmd tea.Cmd
+			m.contatosView, cmd = m.contatosView.Update(msg)
+			return m, cmd
+		}
+
+		if m.activeTab == 8 && m.unidadesView.Estado != unidades.EstadoLista {
+			var cmd tea.Cmd
+			m.unidadesView, cmd = m.unidadesView.Update(msg)
+			return m, cmd
+		}
+
+		// Se estiver na tela de login e não estiver autenticado
+		if m.activeTab == 9 && !m.loginView.Logado {
 			if msg.String() == "esc" {
 				m.activeTab = 0 // Volta para o Dashboard
 				return m, nil
@@ -280,7 +333,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
-		// Navegação global entre as 9 abas:
+		// Navegação global entre as 10 telas:
 		switch msg.String() {
 		case "q":
 			return m, tea.Quit
@@ -310,18 +363,24 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "7":
 			m.activeTab = 6
+			if len(m.propostasView.Propostas) == 0 {
+				m.propostasView.Carregando = true
+				cmds = append(cmds, m.loadPropostasCmd())
+			}
+		case "8":
+			m.activeTab = 7
 			if len(m.contatosView.Contatos) == 0 {
 				m.contatosView.Carregando = true
 				cmds = append(cmds, m.loadContatosCmd())
 			}
-		case "8":
-			m.activeTab = 7
+		case "9":
+			m.activeTab = 8
 			if len(m.unidadesView.Unidades) == 0 {
 				m.unidadesView.Carregando = true
 				cmds = append(cmds, m.loadUnidadesCmd())
 			}
-		case "9":
-			m.activeTab = 8
+		case "0":
+			m.activeTab = 9
 		case "r":
 			// Recarregar dados da tela ativa
 			switch m.activeTab {
@@ -344,14 +403,19 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.reservasView.Carregando = true
 				cmds = append(cmds, m.loadReservasCmd())
 			case 6:
+				m.propostasView.Carregando = true
+				cmds = append(cmds, m.loadPropostasCmd())
+			case 7:
 				m.contatosView.Carregando = true
 				cmds = append(cmds, m.loadContatosCmd())
-			case 7:
+			case 8:
 				m.unidadesView.Carregando = true
 				cmds = append(cmds, m.loadUnidadesCmd())
 			}
 		case "tab":
-			m.activeTab = (m.activeTab + 1) % 9
+			m.activeTab = (m.activeTab + 1) % 10
+		case "shift+tab":
+			m.activeTab = (m.activeTab + 9) % 10
 		case "esc":
 			if m.activeTab != 0 {
 				m.activeTab = 0
@@ -359,7 +423,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Se estiver na aba de perfil, permite logout via 'L'
-		if m.activeTab == 8 && m.loginView.Logado {
+		if m.activeTab == 9 && m.loginView.Logado {
 			var cmd tea.Cmd
 			m.loginView, cmd = m.loginView.Update(msg)
 			cmds = append(cmds, cmd)
@@ -420,6 +484,15 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.isConnected = true
 		}
 
+	case PropostasLoadedMsg:
+		m.propostasView.Carregando = false
+		if msg.Err != nil {
+			m.propostasView.Erro = msg.Err.Error()
+		} else {
+			m.propostasView.SetDados(msg.Data)
+			m.isConnected = true
+		}
+
 	case ContatosLoadedMsg:
 		m.contatosView.Carregando = false
 		if msg.Err != nil {
@@ -438,6 +511,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.isConnected = true
 		}
 
+	// === PROCESSAMENTO DOS FORMULÁRIOS / CADASTROS ===
+
 	case forms.NovoVeiculoResultMsg:
 		m.veiculosView.Estado = veiculos.EstadoLista
 		m.veiculosView.NovoForm = nil
@@ -445,7 +520,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusMsg = "Cadastrando veículo no estoque..."
 			cmds = append(cmds, func() tea.Msg {
 				_, err := m.client.CriarVeiculo(context.Background(), *msg.Payload)
-				return VeiculoMutacaoResultMsg{
+				return OperacaoResultMsg{
+					Modulo:   "veiculos",
 					Mensagem: "Veículo cadastrado com sucesso!",
 					Err:      err,
 				}
@@ -459,32 +535,38 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.statusMsg = "Atualizando situação do veículo..."
 			cmds = append(cmds, func() tea.Msg {
 				err := m.client.AlterarSituacaoVeiculo(context.Background(), msg.VeiculoID, msg.NovaSituacao, msg.Justificativa)
-				return VeiculoMutacaoResultMsg{
+				return OperacaoResultMsg{
+					Modulo:   "veiculos",
 					Mensagem: "Situação do veículo alterada para " + msg.NovaSituacao + "!",
 					Err:      err,
 				}
 			})
 		}
 
-	case VeiculoMutacaoResultMsg:
-		if msg.Err != nil {
-			m.veiculosView.Erro = msg.Err.Error()
-			m.statusMsg = "Falha: " + msg.Err.Error()
-		} else {
-			m.veiculosView.Erro = ""
-			m.statusMsg = msg.Mensagem
-			m.veiculosView.Carregando = true
-			cmds = append(cmds, m.loadVeiculosCmd(), m.loadDashboardCmd())
+	case forms.AdicionarFotoResultMsg:
+		m.veiculosView.Estado = veiculos.EstadoLista
+		m.veiculosView.FotoForm = nil
+		if !msg.Cancel && msg.Payload != nil {
+			m.statusMsg = "Adicionando foto à galeria do veículo..."
+			cmds = append(cmds, func() tea.Msg {
+				_, err := m.client.AdicionarFotoVeiculo(context.Background(), msg.VeiculoID, *msg.Payload)
+				return OperacaoResultMsg{
+					Modulo:   "veiculos",
+					Mensagem: "Foto adicionada à galeria com sucesso!",
+					Err:      err,
+				}
+			})
 		}
 
 	case forms.NovaPecaResultMsg:
 		m.pecasView.Estado = pecas.EstadoLista
 		m.pecasView.NovaForm = nil
 		if !msg.Cancel && msg.Payload != nil {
-			m.statusMsg = "Cadastrando peça no estoque..."
+			m.statusMsg = "Cadastrando peça no almoxarifado..."
 			cmds = append(cmds, func() tea.Msg {
 				_, err := m.client.CriarPeca(context.Background(), *msg.Payload)
-				return PecaMutacaoResultMsg{
+				return OperacaoResultMsg{
+					Modulo:   "pecas",
 					Mensagem: "Peça cadastrada com sucesso!",
 					Err:      err,
 				}
@@ -495,25 +577,232 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.pecasView.Estado = pecas.EstadoLista
 		m.pecasView.VenderForm = nil
 		if !msg.Cancel && msg.Payload != nil {
-			m.statusMsg = "Registrando venda de peça..."
+			m.statusMsg = "Registrando baixa/venda de peça..."
 			cmds = append(cmds, func() tea.Msg {
 				err := m.client.VenderPeca(context.Background(), msg.PecaID, *msg.Payload)
-				return PecaMutacaoResultMsg{
+				return OperacaoResultMsg{
+					Modulo:   "pecas",
 					Mensagem: "Venda de peça registrada com sucesso!",
 					Err:      err,
 				}
 			})
 		}
 
-	case PecaMutacaoResultMsg:
+	case forms.NovaVendaResultMsg:
+		m.vendasView.Estado = vendas.EstadoLista
+		m.vendasView.NovaForm = nil
+		if !msg.Cancel && msg.Payload != nil {
+			m.statusMsg = "Registrando venda de veículo..."
+			cmds = append(cmds, func() tea.Msg {
+				err := m.client.RegistrarVenda(context.Background(), *msg.Payload)
+				return OperacaoResultMsg{
+					Modulo:   "vendas",
+					Mensagem: "Venda de veículo registrada com sucesso!",
+					Err:      err,
+				}
+			})
+		}
+
+	case forms.AgendarVisitaResultMsg:
+		m.agendaView.Estado = agendamentos.EstadoLista
+		m.agendaView.VisitaForm = nil
+		if !msg.Cancel && msg.Payload != nil {
+			m.statusMsg = "Agendando visita presencial à loja..."
+			cmds = append(cmds, func() tea.Msg {
+				err := m.client.AgendarVisita(context.Background(), *msg.Payload)
+				return OperacaoResultMsg{
+					Modulo:   "agenda",
+					Mensagem: "Visita presencial agendada com sucesso!",
+					Err:      err,
+				}
+			})
+		}
+
+	case forms.AgendarTestDriveResultMsg:
+		m.agendaView.Estado = agendamentos.EstadoLista
+		m.agendaView.TestDriveForm = nil
+		if !msg.Cancel && msg.Payload != nil {
+			m.statusMsg = "Agendando test-drive veicular..."
+			cmds = append(cmds, func() tea.Msg {
+				err := m.client.AgendarTestDrive(context.Background(), *msg.Payload)
+				return OperacaoResultMsg{
+					Modulo:   "agenda",
+					Mensagem: "Test-drive agendado com sucesso!",
+					Err:      err,
+				}
+			})
+		}
+
+	case forms.StatusAgendamentoResultMsg:
+		m.agendaView.Estado = agendamentos.EstadoLista
+		m.agendaView.StatusForm = nil
+		if !msg.Cancel {
+			m.statusMsg = "Atualizando status do agendamento..."
+			cmds = append(cmds, func() tea.Msg {
+				err := m.client.AtualizarStatusAgendamento(context.Background(), msg.AgendamentoID, msg.Status, msg.Observacoes)
+				return OperacaoResultMsg{
+					Modulo:   "agenda",
+					Mensagem: "Status do agendamento atualizado para " + msg.Status + "!",
+					Err:      err,
+				}
+			})
+		}
+
+	case forms.NovaReservaResultMsg:
+		m.reservasView.Estado = reservas.EstadoLista
+		m.reservasView.NovaForm = nil
+		if !msg.Cancel && msg.Payload != nil {
+			m.statusMsg = "Solicitando reserva de veículo..."
+			cmds = append(cmds, func() tea.Msg {
+				err := m.client.SolicitarReserva(context.Background(), *msg.Payload)
+				return OperacaoResultMsg{
+					Modulo:   "reservas",
+					Mensagem: "Reserva de veículo solicitada com sucesso!",
+					Err:      err,
+				}
+			})
+		}
+
+	case forms.StatusReservaResultMsg:
+		m.reservasView.Estado = reservas.EstadoLista
+		m.reservasView.StatusForm = nil
+		if !msg.Cancel {
+			m.statusMsg = "Atualizando status da reserva..."
+			cmds = append(cmds, func() tea.Msg {
+				err := m.client.AtualizarStatusReserva(context.Background(), msg.ReservaID, msg.NovoStatus, msg.Motivo)
+				return OperacaoResultMsg{
+					Modulo:   "reservas",
+					Mensagem: "Status da reserva atualizado para " + msg.NovoStatus + "!",
+					Err:      err,
+				}
+			})
+		}
+
+	case forms.NovaPropostaResultMsg:
+		m.propostasView.Estado = propostas.EstadoLista
+		m.propostasView.NovaForm = nil
+		if !msg.Cancel && msg.Payload != nil {
+			m.statusMsg = "Enviando proposta comercial..."
+			cmds = append(cmds, func() tea.Msg {
+				err := m.client.SolicitarProposta(context.Background(), *msg.Payload)
+				return OperacaoResultMsg{
+					Modulo:   "propostas",
+					Mensagem: "Proposta comercial enviada com sucesso!",
+					Err:      err,
+				}
+			})
+		}
+
+	case forms.StatusPropostaResultMsg:
+		m.propostasView.Estado = propostas.EstadoLista
+		m.propostasView.StatusForm = nil
+		if !msg.Cancel {
+			m.statusMsg = "Registrando parecer sobre a proposta..."
+			cmds = append(cmds, func() tea.Msg {
+				err := m.client.AtualizarStatusProposta(context.Background(), msg.PropostaID, msg.NotasResposta)
+				return OperacaoResultMsg{
+					Modulo:   "propostas",
+					Mensagem: "Parecer da proposta registrado com sucesso!",
+					Err:      err,
+				}
+			})
+		}
+
+	case forms.NovoContatoResultMsg:
+		m.contatosView.Estado = contatos.EstadoLista
+		m.contatosView.NovoForm = nil
+		if !msg.Cancel && msg.Payload != nil {
+			m.statusMsg = "Enviando chamado ao SAC..."
+			cmds = append(cmds, func() tea.Msg {
+				err := m.client.NovoContato(context.Background(), *msg.Payload)
+				return OperacaoResultMsg{
+					Modulo:   "contatos",
+					Mensagem: "Chamado do SAC registrado com sucesso!",
+					Err:      err,
+				}
+			})
+		}
+
+	case forms.ResponderContatoResultMsg:
+		m.contatosView.Estado = contatos.EstadoLista
+		m.contatosView.ResponderForm = nil
+		if !msg.Cancel {
+			m.statusMsg = "Registrando atendimento ao chamado..."
+			cmds = append(cmds, func() tea.Msg {
+				err := m.client.ResponderContato(context.Background(), msg.ContatoID, msg.Notas)
+				return OperacaoResultMsg{
+					Modulo:   "contatos",
+					Mensagem: "Atendimento do chamado SAC registrado!",
+					Err:      err,
+				}
+			})
+		}
+
+	case forms.NovaUnidadeResultMsg:
+		m.unidadesView.Estado = unidades.EstadoLista
+		m.unidadesView.NovaForm = nil
+		if !msg.Cancel && msg.Payload != nil {
+			m.statusMsg = "Cadastrando nova concessionária..."
+			cmds = append(cmds, func() tea.Msg {
+				_, err := m.client.CriarUnidade(context.Background(), *msg.Payload)
+				return OperacaoResultMsg{
+					Modulo:   "unidades",
+					Mensagem: "Nova concessionária cadastrada com sucesso!",
+					Err:      err,
+				}
+			})
+		}
+
+	// Feedback Unificado de Mutação
+	case OperacaoResultMsg:
 		if msg.Err != nil {
-			m.pecasView.Erro = msg.Err.Error()
 			m.statusMsg = "Falha: " + msg.Err.Error()
+			switch msg.Modulo {
+			case "veiculos":
+				m.veiculosView.Erro = msg.Err.Error()
+			case "pecas":
+				m.pecasView.Erro = msg.Err.Error()
+			case "vendas":
+				m.vendasView.Erro = msg.Err.Error()
+			case "agenda":
+				m.agendaView.Erro = msg.Err.Error()
+			case "reservas":
+				m.reservasView.Erro = msg.Err.Error()
+			case "propostas":
+				m.propostasView.Erro = msg.Err.Error()
+			case "contatos":
+				m.contatosView.Erro = msg.Err.Error()
+			case "unidades":
+				m.unidadesView.Erro = msg.Err.Error()
+			}
 		} else {
-			m.pecasView.Erro = ""
-			m.statusMsg = msg.Mensagem
-			m.pecasView.Carregando = true
-			cmds = append(cmds, m.loadPecasCmd(), m.loadDashboardCmd())
+			m.statusMsg = "✔ " + msg.Mensagem
+			switch msg.Modulo {
+			case "veiculos":
+				m.veiculosView.Carregando = true
+				cmds = append(cmds, m.loadVeiculosCmd(), m.loadDashboardCmd())
+			case "pecas":
+				m.pecasView.Carregando = true
+				cmds = append(cmds, m.loadPecasCmd(), m.loadDashboardCmd())
+			case "vendas":
+				m.vendasView.Carregando = true
+				cmds = append(cmds, m.loadVendasCmd(), m.loadDashboardCmd())
+			case "agenda":
+				m.agendaView.Carregando = true
+				cmds = append(cmds, m.loadAgendamentosCmd())
+			case "reservas":
+				m.reservasView.Carregando = true
+				cmds = append(cmds, m.loadReservasCmd())
+			case "propostas":
+				m.propostasView.Carregando = true
+				cmds = append(cmds, m.loadPropostasCmd())
+			case "contatos":
+				m.contatosView.Carregando = true
+				cmds = append(cmds, m.loadContatosCmd())
+			case "unidades":
+				m.unidadesView.Carregando = true
+				cmds = append(cmds, m.loadUnidadesCmd())
+			}
 		}
 
 	case login.SubmitLoginMsg:
@@ -530,8 +819,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.loginView.Logado = true
 			m.loginView.Usuario = msg.Resp.Usuario.Nome
-			m.veiculosView.IsAutenticado = true
-			m.pecasView.IsAutenticado = true
+			m.setAutenticado(true)
 			m.statusMsg = "Usuário: " + msg.Resp.Usuario.Nome
 			m.cfg.Token = msg.Resp.Token
 			_ = m.cfg.Save()
@@ -544,6 +832,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.loadVendasCmd(),
 				m.loadAgendamentosCmd(),
 				m.loadReservasCmd(),
+				m.loadPropostasCmd(),
 				m.loadContatosCmd(),
 			)
 		}
@@ -552,14 +841,14 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Err == nil && msg.Usuario != nil {
 			m.loginView.Logado = true
 			m.loginView.Usuario = msg.Usuario.Nome
-			m.veiculosView.IsAutenticado = true
-			m.pecasView.IsAutenticado = true
+			m.setAutenticado(true)
 			m.statusMsg = "Usuário: " + msg.Usuario.Nome
 			cmds = append(cmds,
 				m.loadDashboardCmd(),
 				m.loadVendasCmd(),
 				m.loadAgendamentosCmd(),
 				m.loadReservasCmd(),
+				m.loadPropostasCmd(),
 				m.loadContatosCmd(),
 			)
 		}
@@ -570,8 +859,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.client.SetToken("")
 		m.statusMsg = "Pronto (Desconectado)"
 		m.activeTab = 0
-		m.veiculosView.IsAutenticado = false
-		m.pecasView.IsAutenticado = false
+		m.setAutenticado(false)
 		m.dashboardView.Indicadores = nil
 		m.dashboardView.Erro = "Efetue login para visualizar dados restritos"
 		cmds = append(cmds, m.loadDashboardCmd())
@@ -601,13 +889,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	case 6:
 		var cmd tea.Cmd
-		m.contatosView, cmd = m.contatosView.Update(msg)
+		m.propostasView, cmd = m.propostasView.Update(msg)
 		cmds = append(cmds, cmd)
 	case 7:
 		var cmd tea.Cmd
-		m.unidadesView, cmd = m.unidadesView.Update(msg)
+		m.contatosView, cmd = m.contatosView.Update(msg)
 		cmds = append(cmds, cmd)
 	case 8:
+		var cmd tea.Cmd
+		m.unidadesView, cmd = m.unidadesView.Update(msg)
+		cmds = append(cmds, cmd)
+	case 9:
 		if !m.loginView.Logado {
 			var cmd tea.Cmd
 			m.loginView, cmd = m.loginView.Update(msg)
@@ -616,6 +908,17 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, tea.Batch(cmds...)
+}
+
+func (m *AppModel) setAutenticado(autenticado bool) {
+	m.veiculosView.IsAutenticado = autenticado
+	m.pecasView.IsAutenticado = autenticado
+	m.vendasView.IsAutenticado = autenticado
+	m.agendaView.IsAutenticado = autenticado
+	m.reservasView.IsAutenticado = autenticado
+	m.propostasView.IsAutenticado = autenticado
+	m.contatosView.IsAutenticado = autenticado
+	m.unidadesView.IsAutenticado = autenticado
 }
 
 func (m AppModel) View() string {
@@ -631,9 +934,10 @@ func (m AppModel) View() string {
 		{Key: "4", Title: "Vendas"},
 		{Key: "5", Title: "Agenda"},
 		{Key: "6", Title: "Reservas"},
-		{Key: "7", Title: "SAC"},
-		{Key: "8", Title: "Lojas"},
-		{Key: "9", Title: loginTabTitle},
+		{Key: "7", Title: "Propostas"},
+		{Key: "8", Title: "SAC"},
+		{Key: "9", Title: "Lojas"},
+		{Key: "0", Title: loginTabTitle},
 	}
 
 	header := components.RenderHeader(m.activeTab, tabs, m.width)
@@ -653,15 +957,17 @@ func (m AppModel) View() string {
 	case 5:
 		body = m.reservasView.View()
 	case 6:
-		body = m.contatosView.View()
+		body = m.propostasView.View()
 	case 7:
-		body = m.unidadesView.View()
+		body = m.contatosView.View()
 	case 8:
+		body = m.unidadesView.View()
+	case 9:
 		body = m.loginView.View()
 	}
 
 	shortcuts := []components.Shortcut{
-		{Key: "1-9", Desc: "Mudar Aba"},
+		{Key: "1-0", Desc: "Mudar Aba"},
 		{Key: "Tab", Desc: "Próxima Aba"},
 		{Key: "r", Desc: "Recarregar"},
 		{Key: "↑/↓", Desc: "Navegar"},

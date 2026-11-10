@@ -18,20 +18,22 @@ const (
 	EstadoLista EstadoView = iota
 	EstadoNovoVeiculo
 	EstadoAlterarSituacao
+	EstadoAdicionarFoto
 )
 
 type Model struct {
-	Table        table.Model
-	Veiculos     []model.VeiculoCatalogoResponse
-	TotalItens   int
-	PaginaAtual  int
-	Carregando   bool
-	Erro         string
-	Width        int
-	Height       int
-	Estado       EstadoView
-	NovoForm     *forms.NovoVeiculoForm
-	SituacaoForm *forms.AlterarSituacaoForm
+	Table         table.Model
+	Veiculos      []model.VeiculoCatalogoResponse
+	TotalItens    int
+	PaginaAtual   int
+	Carregando    bool
+	Erro          string
+	Width         int
+	Height        int
+	Estado        EstadoView
+	NovoForm      *forms.NovoVeiculoForm
+	SituacaoForm  *forms.AlterarSituacaoForm
+	FotoForm      *forms.AdicionarFotoForm
 	IsAutenticado bool
 }
 
@@ -124,6 +126,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.SituacaoForm, cmd = m.SituacaoForm.Update(msg)
 			return m, cmd
 		}
+	case EstadoAdicionarFoto:
+		if m.FotoForm != nil {
+			var cmd tea.Cmd
+			m.FotoForm, cmd = m.FotoForm.Update(msg)
+			return m, cmd
+		}
 	}
 
 	// Modo Lista padrão
@@ -132,7 +140,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		switch msg.String() {
 		case "a":
 			if !m.IsAutenticado {
-				m.Erro = "Autentique-se na aba [4] Login para cadastrar novos veículos."
+				m.Erro = "Autentique-se na aba [0] Perfil para cadastrar novos veículos."
 				return m, nil
 			}
 			m.Estado = EstadoNovoVeiculo
@@ -141,13 +149,25 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		case "s":
 			if !m.IsAutenticado {
-				m.Erro = "Autentique-se na aba [4] Login para alterar situação de veículos."
+				m.Erro = "Autentique-se na aba [0] Perfil para alterar situação de veículos."
 				return m, nil
 			}
 			sel := m.VeiculoSelecionado()
 			if sel != nil {
 				m.Estado = EstadoAlterarSituacao
 				m.SituacaoForm = forms.NewAlterarSituacaoForm(sel.ID, fmt.Sprintf("%s %s", sel.Marca, sel.Modelo), sel.Situacao)
+				return m, nil
+			}
+
+		case "i":
+			if !m.IsAutenticado {
+				m.Erro = "Autentique-se na aba [0] Perfil para adicionar fotos ao veículo."
+				return m, nil
+			}
+			sel := m.VeiculoSelecionado()
+			if sel != nil {
+				m.Estado = EstadoAdicionarFoto
+				m.FotoForm = forms.NewAdicionarFotoForm(sel.ID, fmt.Sprintf("%s %s", sel.Marca, sel.Modelo))
 				return m, nil
 			}
 		}
@@ -178,6 +198,18 @@ func (m Model) View() string {
 				lipgloss.NewStyle().Foreground(theme.FgMuted).Render("[Esc] para voltar sem salvar."),
 				"",
 				m.SituacaoForm.View(),
+			),
+		)
+		return lipgloss.Place(m.Width, m.Height-4, lipgloss.Center, lipgloss.Center, formBox)
+	}
+
+	if m.Estado == EstadoAdicionarFoto && m.FotoForm != nil {
+		formBox := theme.ModalBoxStyle.Width(56).Render(
+			lipgloss.JoinVertical(lipgloss.Left,
+				lipgloss.NewStyle().Bold(true).Foreground(theme.Accent).Render("📷 ADICIONAR FOTO AO VEÍCULO"),
+				lipgloss.NewStyle().Foreground(theme.FgMuted).Render("[Esc] para voltar sem salvar."),
+				"",
+				m.FotoForm.View(),
 			),
 		)
 		return lipgloss.Place(m.Width, m.Height-4, lipgloss.Center, lipgloss.Center, formBox)
@@ -214,7 +246,7 @@ func (m Model) View() string {
 
 	paginacaoInfo := lipgloss.NewStyle().
 		Foreground(theme.FgMuted).
-		Render(fmt.Sprintf("Exibindo %d de %d veículo(s) | [a] Novo Veículo  [s] Alterar Status  [↑/↓] Navegar%s", len(m.Veiculos), m.TotalItens, statusAviso))
+		Render(fmt.Sprintf("Exibindo %d de %d veículo(s) | [a] Novo Veículo  [s] Alterar Status  [i] Adicionar Foto  [↑/↓] Navegar%s", len(m.Veiculos), m.TotalItens, statusAviso))
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		lipgloss.NewStyle().Bold(true).Foreground(theme.FgLight).Padding(1, 0).Render("CATÁLOGO DE VEÍCULOS NO ESTOQUE"),
