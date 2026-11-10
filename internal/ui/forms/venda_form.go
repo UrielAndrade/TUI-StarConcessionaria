@@ -79,8 +79,7 @@ func NewNovaVendaForm(veiculoIDPadrao int, valorPadrao float64) *NovaVendaForm {
 					}
 					return nil
 				}),
-		),
-		huh.NewGroup(
+
 			huh.NewSelect[string]().
 				Title("Forma de Pagamento").
 				Options(
@@ -104,7 +103,7 @@ func NewNovaVendaForm(veiculoIDPadrao int, valorPadrao float64) *NovaVendaForm {
 					return nil
 				}),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).WithKeyMap(FormKeyMap())
 
 	return f
 }

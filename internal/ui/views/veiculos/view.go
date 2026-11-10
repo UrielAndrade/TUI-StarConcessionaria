@@ -183,7 +183,7 @@ func (m Model) View() string {
 		formBox := theme.ModalBoxStyle.Width(58).Render(
 			lipgloss.JoinVertical(lipgloss.Left,
 				lipgloss.NewStyle().Bold(true).Foreground(theme.Primary).Render("★ CADASTRAR NOVO VEÍCULO"),
-				lipgloss.NewStyle().Foreground(theme.FgMuted).Render("Preencha os campos abaixo. [Esc] para cancelar."),
+				lipgloss.NewStyle().Foreground(theme.FgMuted).Render("[Enter/Tab/↓] Próximo  [Shift+Tab/↑] Anterior  [Esc] Cancelar"),
 				"",
 				m.NovoForm.View(),
 			),

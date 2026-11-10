@@ -71,7 +71,7 @@ func NewNovaPecaForm() *NovaPecaForm {
 					return nil
 				}),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).WithKeyMap(FormKeyMap())
 
 	return f
 }
@@ -176,7 +176,7 @@ func NewVenderPecaForm(pecaID int, pecaNome string, estoqueAtual int) *VenderPec
 				Placeholder("(11) 98765-4321").
 				Value(&f.Telefone),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).WithKeyMap(FormKeyMap())
 
 	return f
 }

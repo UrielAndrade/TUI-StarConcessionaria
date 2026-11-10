@@ -65,7 +65,7 @@ func NewAdicionarFotoForm(veiculoID int, veiculoDesc string) *AdicionarFotoForm 
 					return nil
 				}),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).WithKeyMap(FormKeyMap())
 
 	return f
 }

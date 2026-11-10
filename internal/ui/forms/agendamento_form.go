@@ -87,7 +87,7 @@ func NewAgendarVisitaForm() *AgendarVisitaForm {
 					return nil
 				}),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).WithKeyMap(FormKeyMap())
 
 	return f
 }
@@ -219,7 +219,7 @@ func NewAgendarTestDriveForm(veiculoIDPadrao int) *AgendarTestDriveForm {
 					return nil
 				}),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).WithKeyMap(FormKeyMap())
 
 	return f
 }
@@ -301,7 +301,7 @@ func NewStatusAgendamentoForm(id int, statusAtual string) *StatusAgendamentoForm
 				Placeholder("Ex: Compareceu na concessionária, cliente aprovou o veículo.").
 				Value(&f.Observacoes),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).WithKeyMap(FormKeyMap())
 
 	return f
 }

@@ -97,8 +97,7 @@ func NewNovaPropostaForm(veiculoID int, unidadeID int) *NovaPropostaForm {
 				Title("Telefone / WhatsApp").
 				Placeholder("(11) 97777-8888").
 				Value(&f.Telefone),
-		),
-		huh.NewGroup(
+
 			huh.NewSelect[string]().
 				Title("Condição de Pagamento Pretendida").
 				Options(
@@ -133,7 +132,7 @@ func NewNovaPropostaForm(veiculoID int, unidadeID int) *NovaPropostaForm {
 				Placeholder("Ex: VW Gol 1.0 2018 70.000km").
 				Value(&f.DadosTroca),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).WithKeyMap(FormKeyMap())
 
 	return f
 }
@@ -208,7 +207,7 @@ func NewStatusPropostaForm(id int, protocolo string) *StatusPropostaForm {
 					return nil
 				}),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).WithKeyMap(FormKeyMap())
 
 	return f
 }

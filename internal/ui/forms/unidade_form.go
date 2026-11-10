@@ -86,8 +86,7 @@ func NewNovaUnidadeForm() *NovaUnidadeForm {
 				Title("Número").
 				Placeholder("500").
 				Value(&f.Numero),
-		),
-		huh.NewGroup(
+
 			huh.NewInput().
 				Title("Bairro").
 				Placeholder("Gonzaga").
@@ -125,7 +124,7 @@ func NewNovaUnidadeForm() *NovaUnidadeForm {
 				Placeholder("-46.3336").
 				Value(&f.LongStr),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).WithKeyMap(FormKeyMap())
 
 	return f
 }

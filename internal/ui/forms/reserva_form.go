@@ -82,7 +82,7 @@ func NewNovaReservaForm(veiculoIDPadrao int) *NovaReservaForm {
 				Placeholder("Ex: Sinal de R$ 5.000 pago via Pix, reserva por 48h.").
 				Value(&f.Observacoes),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).WithKeyMap(FormKeyMap())
 
 	return f
 }
@@ -159,7 +159,7 @@ func NewStatusReservaForm(id int, statusAtual string) *StatusReservaForm {
 				Placeholder("Ex: Pagamento integral concluído ou desistência do lead.").
 				Value(&f.Motivo),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).WithKeyMap(FormKeyMap())
 
 	return f
 }

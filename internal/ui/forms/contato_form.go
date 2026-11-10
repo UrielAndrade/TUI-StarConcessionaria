@@ -90,7 +90,7 @@ func NewNovoContatoForm() *NovoContatoForm {
 					return nil
 				}),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).WithKeyMap(FormKeyMap())
 
 	return f
 }
@@ -164,7 +164,7 @@ func NewResponderContatoForm(id int, protocolo string) *ResponderContatoForm {
 					return nil
 				}),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).WithKeyMap(FormKeyMap())
 
 	return f
 }

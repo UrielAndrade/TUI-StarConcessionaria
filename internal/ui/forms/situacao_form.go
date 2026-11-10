@@ -52,7 +52,7 @@ func NewAlterarSituacaoForm(veiculoID int, veiculoDesc, situacaoAtual string) *A
 					return nil
 				}),
 		),
-	).WithTheme(huh.ThemeCharm())
+	).WithTheme(huh.ThemeCharm()).WithKeyMap(FormKeyMap())
 
 	return f
 }
